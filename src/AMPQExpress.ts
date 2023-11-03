@@ -37,14 +37,37 @@ export class AMPQExpress {
 
 }
 
-
-export class AMPQRpc {
+export class AMPRequest {
 
     static generateUUID() {
+        return uuidv4();
+    }
+
+    static isNotComplientWithSchema(input : any, schema : string[]) {
+
+        let missingProps = [];
+
+        for (let prop of schema) {
+
+            if (input.hasOwnProperty(prop))
+                continue;
+
+            missingProps.push(prop);
+        }
+
+        if (missingProps.length > 0) {
+            return missingProps.join(', ')
+        }
+
+        return false;
 
     }
 
-    static on(connection: ampq.Connection, queue: string, callback: any) {
+}
+
+export class AMPQRpc extends AMPRequest {
+
+    static on(connection: ampq.Connection, queue: string, callback: any, schema : string[] = []) {
 
         connection.createChannel((error, channel) => {
 
@@ -72,6 +95,15 @@ export class AMPQRpc {
                 }
 
                 messageContent = messageContent.toString();
+                if (AMPQRpc.isNotComplientWithSchema(messageContent, schema)) {
+                    channel.sendToQueue(msg?.properties.replyTo,
+                        Buffer.from(JSON.stringify({
+                            "Error" : "The message is not complient with the schema",
+                            "expected" : AMPQRpc.isNotComplientWithSchema(messageContent, schema)
+                        })), {
+                        correlationId: msg?.properties.correlationId
+                    });
+                }
 
                 try {
                     messageContent = JSON.parse(messageContent)
@@ -97,9 +129,7 @@ export class AMPQRpc {
 
     }
 
-    static async emit(connection: ampq.Connection, queue: string, message: any, callbackRecived: any) {
-
-        await connection;
+    static async emit(connection: ampq.Connection, queue: string, message: any, callbackRecived: any, schema : any = {}) {
 
         if (typeof message === "object") {
             message = JSON.stringify(message);
@@ -115,7 +145,7 @@ export class AMPQRpc {
 
                 console.log(` [🐇] Requesting ${queue}`, message);
 
-                let correlationId = uuidv4();
+                let correlationId = AMPQRpc.generateUUID();
 
                 channel.consume(q.queue, (msg) => {
 
