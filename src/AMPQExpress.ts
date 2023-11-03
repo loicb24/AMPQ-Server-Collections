@@ -47,6 +47,10 @@ export class AMPRequest {
 
         let missingProps = [];
 
+        if (typeof input === 'string') {
+            input = JSON.parse(input);
+        }
+
         for (let prop of schema) {
 
             if (input.hasOwnProperty(prop))
@@ -67,9 +71,9 @@ export class AMPRequest {
 
 export class AMPQRpc extends AMPRequest {
 
-    static on(connection: ampq.Connection, queue: string, callback: any, schema : string[] = []) {
+    static async on(connection: ampq.Connection, queue: string, callback: any, schema : string[] = []) {
 
-        connection.createChannel((error, channel) => {
+        connection.createChannel( async (error, channel) => {
 
             if (error) {
                 throw error;
@@ -82,7 +86,7 @@ export class AMPQRpc extends AMPRequest {
 
             console.log(` [🐇] Awaiting RPC requests for queue ${queue}`);
 
-            channel.consume(queue, (msg) => {
+            channel.consume(queue, async (msg) => {
 
 
                 console.log(` [🐰] Got new message on queue : ${queue}`);
@@ -111,10 +115,12 @@ export class AMPQRpc extends AMPRequest {
                     // do nothing
                 }
 
-                let reply = callback(messageContent);
+                let reply = await callback(messageContent);
                 if (typeof reply == 'object') {
                     reply = JSON.stringify(reply)
                 }
+
+                console.log(reply)
 
                 channel.sendToQueue(msg?.properties.replyTo,
                     Buffer.from(reply), {
@@ -135,19 +141,19 @@ export class AMPQRpc extends AMPRequest {
             message = JSON.stringify(message);
         }
 
-        connection.createChannel((error, channel) => {
+        connection.createChannel(async (error, channel) => {
 
             if (error) {
                 throw error;
             }
 
-            channel.assertQueue('', { exclusive: true }, (errorAssert, q) => {
+            channel.assertQueue('', { exclusive: true }, async (errorAssert, q) => {
 
                 console.log(` [🐇] Requesting ${queue}`, message);
 
                 let correlationId = AMPQRpc.generateUUID();
 
-                channel.consume(q.queue, (msg) => {
+                channel.consume(q.queue, async (msg) => {
 
                     if (msg?.properties.correlationId == correlationId) {
 
@@ -160,7 +166,7 @@ export class AMPQRpc extends AMPRequest {
                             // do nothing
                         }
 
-                        callbackRecived(messageContent);
+                        await callbackRecived(messageContent);
 
                     }
 
