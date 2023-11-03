@@ -1,0 +1,22 @@
+{
+  "name": "ampq-server-collections",
+  "version": "1.0.0",
+  "description": "A library inspired by Express to facilitate the use of AMPQ",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc -w",
+    "start:run": "nodemon build/index.js",
+    "start": "node build/index.js",
+    "test": "nodemon build/Test/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/amqplib": "^0.10.3",
+    "@types/uuid": "^9.0.6",
+    "amqplib": "^0.10.3",
+    "dotenv": "^16.3.1",
+    "nodemon": "^3.0.1",
+    "uuid": "^9.0.1"
+  }
+}

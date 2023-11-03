@@ -1,0 +1,5 @@
+node_modules
+Databases
+build
+Test
+.env
