@@ -107,6 +107,7 @@ export class AMPQRpc extends AMPRequest {
                         })), {
                         correlationId: msg?.properties.correlationId
                     });
+                    return;
                 }
 
                 try {
