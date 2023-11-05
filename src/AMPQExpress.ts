@@ -43,7 +43,7 @@ export class AMPRequest {
         return uuidv4();
     }
 
-    static isNotComplientWithSchema(input : any, schema : string[]) {
+    static isNotComplientWithSchema(input: any, schema: string[]) {
 
         let missingProps = [];
 
@@ -69,11 +69,98 @@ export class AMPRequest {
 
 }
 
+
+export class AMPQPushSub extends AMPRequest {
+
+    static async publish(connection: ampq.Connection, exchange: string, message: any, callback: any, schema: string[] = []) {
+
+        connection.createChannel(async (error, channel) => {
+
+            if (typeof message === "object") {
+                message = JSON.stringify(message);
+            }
+
+            console.log(` [🐇] Publisher for '${exchange}' created`);
+
+            if (error) {
+                throw error;
+            }
+
+            channel.assertExchange(exchange, 'fanout', {
+                durable: true
+            });
+
+            channel.publish(exchange, '', Buffer.from(message));
+            console.log(` [🐰] Message published to : ${exchange}`);
+
+            await callback()
+
+        });
+
+    }
+
+    static async subscribe(connection: ampq.Connection, exchange: string, callback: any, schema: string[] = []) {
+
+        connection.createChannel(async (error, channel) => {
+
+            if (error) {
+                throw error;
+            } 
+
+            let queue = `${exchange}|${process.env.SERVICE_NAME || process.env.PORT}`
+            channel.assertExchange(exchange, 'fanout', { durable: true });
+            channel.prefetch(1);
+
+            channel.assertQueue(queue, { exclusive: false, durable : true }, async (error2, q) => {
+
+                if (error2) {
+                    throw error2;
+                }
+
+                console.log(` [🐇] Waiting for message on '${exchange}'`);
+
+                channel.bindQueue(q.queue, exchange, '');
+
+                channel.consume(q.queue, async (msg: any) => {
+
+                    let messageContent = msg?.content || "";
+
+                    if (messageContent === "") {
+                        // @todo : should be logged
+                        return;
+                    }
+
+                    messageContent = messageContent.toString();
+
+                    if (AMPQRpc.isNotComplientWithSchema(messageContent, schema)) {
+                        // @todo : should be logged
+                        return;
+                    }
+
+                    try {
+                        messageContent = JSON.parse(messageContent)
+                    } catch (e) {
+                        // do nothing
+                    }
+
+                    await callback(messageContent);
+                    
+                }, {
+                    noAck: true
+                });
+            });
+
+        });
+
+    }
+
+}
+
 export class AMPQRpc extends AMPRequest {
 
-    static async on(connection: ampq.Connection, queue: string, callback: any, schema : string[] = []) {
+    static async on(connection: ampq.Connection, queue: string, callback: any, schema: string[] = []) {
 
-        connection.createChannel( async (error, channel) => {
+        connection.createChannel(async (error, channel) => {
 
             if (error) {
                 throw error;
@@ -102,8 +189,8 @@ export class AMPQRpc extends AMPRequest {
                 if (AMPQRpc.isNotComplientWithSchema(messageContent, schema)) {
                     channel.sendToQueue(msg?.properties.replyTo,
                         Buffer.from(JSON.stringify({
-                            "Error" : "The message is not complient with the schema",
-                            "expected" : AMPQRpc.isNotComplientWithSchema(messageContent, schema)
+                            "Error": "The message is not complient with the schema",
+                            "expected": AMPQRpc.isNotComplientWithSchema(messageContent, schema)
                         })), {
                         correlationId: msg?.properties.correlationId
                     });
@@ -136,7 +223,7 @@ export class AMPQRpc extends AMPRequest {
 
     }
 
-    static async emit(connection: ampq.Connection, queue: string, message: any, callbackRecived: any, schema : any = {}) {
+    static async emit(connection: ampq.Connection, queue: string, message: any, callbackRecived: any, schema: any = {}) {
 
         if (typeof message === "object") {
             message = JSON.stringify(message);
