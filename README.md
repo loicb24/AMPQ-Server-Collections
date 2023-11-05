@@ -32,6 +32,12 @@ You can create multiple types of handlers.
 
 ### RPC
 
+You should use RPC when the system that *emits* the messsage needs to wait for the other service to provide a response. This is a closed loop where there can be only 1 system that *emits* and one system that *reacts* to it (2 system could emit the *same* message, but the answer will only go to the system that emits his message).
+
+This looks more or less like this : 
+
+![Alt text](https://www.rabbitmq.com/img/tutorials/python-six.png)
+
 On the sending side : 
 
     AMPQRpc.emit(ampqE.ampqConnection!, 'YOUR QUEUE', 'MESSAGE', (response: any) => {
@@ -49,3 +55,35 @@ An on the receiving end :
         // return something to the sender
         
     });
+
+### Push/Sub : with persistant queue
+
+The push/sub implementation contains persistant queue; This means that the system that *publish* the message place it on an exchange and from that exchange, each service that wants to consume the message implement it's own queue.
+
+This looks more or less like this : 
+
+![Alt text](https://www.rabbitmq.com/img/tutorials/python-three-overall.png)
+
+
+On the subscriber side :
+
+*(remember that you will **not** return anything to the service pushing !)*
+
+    AMPQPushSub.subscribe(ampqE.ampqConnection!, 'YOUR_EXCHANGE', async (msg : any) => {
+
+        // your code goes here
+        // you don't have to return anything
+        
+    });
+
+On the publisher side :
+
+*(remember that you will **not** receive the answer to your message !)*
+
+    const message = {hello : "world"};
+    AMPQPushSub.publish(ampqE.ampqConnection!, 'YOUR_EXCHANGE', message, () => {
+
+        // you can define a callback after sending
+        // you don't have to return anything
+    });
+
