@@ -166,8 +166,6 @@ export class AMPQRpc extends AMPRequest {
                 throw error;
             }
 
-            var queue = 'UPSERT_USER';
-
             channel.assertQueue(queue, { durable: false });
             channel.prefetch(1);
 
